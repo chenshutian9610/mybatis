@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ehcache>
+    <cache name="customers" maxElementsInMemory="1000"/>
+    <cache name="orders" maxElementsInMemory="1000"/>
+    <cache name="byPrice" maxElementsInMemory="1000"/>
+    <cache name="byCID" maxElementsInMemory="1000"/>
+</ehcache>

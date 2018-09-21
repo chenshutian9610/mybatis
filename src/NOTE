@@ -1,0 +1,128 @@
+* mybatis 和 hibernate 的配置文件和 API 几乎一样
+	mybatis-config.xml          hibernate.cfg.xml
+	Mapper.xml 			        hibernate.hbm.xml
+	SqlSessionFactoryBuilder	Configuration
+	SqlSessionFactory			SessionFactory
+	SqlSession					Session
+  hibernate 针对 domain 层，是全自动映射，开发效率高但难优化，通过 Transaction 控制事务
+  mybatis 针对 dao 层，是半自动映射，且 SqlSession 本身就可以使用事务功能
+
+* mybatis 是半自动映射，不像 hibernate 那样一个持久化类就是一个表，mybatis 中类和表其实是没有关系的
+  * 在 mybatis 中使用 parameterType 指定入参类型，使用 ognl 来绑定入参（使用 _parameter 表示入参，使用 #{} 访问入参内部的属性），例如：
+	<p> parameterType="my.domain.User"                  //  使用 #{id} 可以访问 User#id，使用 #{name} 可以访问 User#name
+	<p> select * from tb_user where name = #{name};     //  查询的表是 tb_user，但 parameterType 不一定是 User
+  * 在 mybatis 中使用 resultType 指定返回类型，返回的字段值会自动注入同名的属性中
+	<p>
+	    resultType="my.domain.User"
+	    select id, name, pwd from tb_user;              //  返回的值会注入到 User 的 id，name 和 pwd 属性中
+	</p>
+  * resultType 要求列名与属性名一致，否则相应属性不会被注入
+	假设 User 类含有属性 id，username，password，有两种方法解决上述问题
+	<p> 查询语句改为 select id, name username, pwd password from tb_user; </p>
+	<p> 使用 resultMap </p> </p>
+  * 总结：mybatis 使用 parameterType，resultType 和 resultMap 来完成持久化对象映射
+
+* mybatis api
+  * mybatis 没有 Spring 的 Resource，所以不能使用 classpath: file: 等前缀，
+	但 mybatis 提供了一个 Resources 工具类，可以将类路径的资源转化为 IO 流
+  * SqlSession 的方法
+    select 		<select>	需要一个 ResultHandler 参数，用于处理复杂结果集
+    selectOne	<select>	如 selectOne("my.dao.UserDao.findByName",user)，字符串格式为 <mapper#namespace>.<select#id>
+    selectList  <select>
+    insert		<insert>
+    update		<update>
+    delete		<delete>
+    commit
+    rollback
+    close
+
+* mybatis 注意
+  #{}绑定 parameterType（ognl），当输出字符串时会自动在两边加上引号，如 hello 输出为 'hello'
+  ${}输出字符串时不加修改直接输出，如 hello 输出为 hello，所以不能防止 sql 注入，如
+    select * from tb_user where name= ${name} and password= ${password};
+    select * from tb_user where name='chen'or 1=1 and password='chen' or 1=1;   < SQL 注入 >
+
+
+* 关系映射
+  * 使用 resultMap 里面的 association 和 collection 来表现，有两种查询方式，嵌套查询和嵌套结果
+    比如有 Customer 和 Order 两个类，两者是一对多的关系，在 Customer 中有一个 orders，在 Order 有一个 customer
+    * 嵌套查询：查询 Order 时，会先发出一条 sql 语句查询 Order 的信息，再发出一条 sql 语句查询与 Order 关联的 Customer 的信息
+    * 嵌套结果：查询 Order 时是通过一条复合 sql 语句，同时查询 Order 和 Customer，然后再将结果映射到指定属性中
+    ps：使用嵌套查询是分多次查询，所以可以用于延迟加载（需要在配置文件中设置 lazyLoadingEnabled 和 aggressiveLazyLoading）
+        使用嵌套结果只向数据库发送一条查询语句，所以数据库负担小
+  * 嵌套查询和嵌套结果的不同，前者需要 column 和 select 属性，后者在标记内部配置 id 和 result
+  * association 和 collection 的不同，前者使用 javaType 表示关联属性的类型，后者使用 ofType（因为 collection 的关联属性类型为 List<?>）
+
+* spring cache 整合
+  * 缓存和事务管理实现原理一样，都是使用 aop，实现步骤
+    1.配置一个 cacheManager
+    2.使用 <cache:annotation-driven/>
+    3.在方法上使用注解
+
+  * spring 注解
+    @Cacheable      cacheNames,key,keyGenerator,condition(使用 spel )
+    @CacheConfig    类级别的 @Cacheable，属性与该注解一致
+    @CachePut       方法执行之后将返回结果更新缓存，即不管怎样都会执行方法，少用
+    @Caching        注解组，可以设置多个 @Cacheable 注解
+    @CacheEvict     allEntries,beforeInvocation（默认都为 fales），和 @Cacheable 一样以入参作为键，
+                    默认情况下如果方法执行后发生异常将不会更新缓存，如果将 beforeInvocation 改为 true，则在方法执行前更新缓存
+
+  * JSR-107 注解（没有 @Caching 对应的注解）
+    @CacheResult    相当于 @Cacheable，不过它不仅缓存对象也缓存方法的异常
+    @CachePut       相当于 @CachePut
+    @CacheDefault   相当于 @CacheConfig
+    @CacheRemove    相当于 @CacheEvict(allEntries=false)
+    @CacheRemoveAll 相当于 @CacheEvict(allEntries=true)
+
+  * 缓存管理器
+    * spring 提供实现类
+        SimpleCacheManager          最简单的缓存管理器，需要手动设置对象的缓存，如 users（类型为 CurrentMapCacheFactoryBean）
+        ConcurrentMapCacheManager   SimpleCacheManager 的升级版，使用时会自动生成该对象的缓存
+        CompositeCacheManager       可以包含多个缓存管理器
+    * 常用的第三方框架
+        EhcacheCacheManager         需要配置一个 EhcacheManagerFactoryBean，定位缓存的配置文件（因为 ehcache 是大型缓存框架）
+        GuavaCacheManager
+        JCacheCacheManager          配置了这个才能使用 JSR-107 注解，不过和 EhcacheCacheManager 一样要配置一个 Manager，繁琐，不推荐
+
+  * 注解中的属性可以使用 spel 来使用入参
+    #root.methodName    方法名
+    #root.args[n]       第 n 个参数
+    #user.id            需要入参中含有 user
+    #result             返回值
+
+* cache 附
+    redis，memcached 都是操作系统上的缓存解决方案（应用程序），前者只支持单核运行，后者支持多核（默认开启为单核）
+    java 常用缓存框架 ehcache，guava，caffeine（guava 的重写的改进，在 spring 5 中被用来代替 guava）
+    ehcache 适用于大型应用，需要 slf4j 的支持，ehcache2 免费，版本3收费
+
+* spring cache 配置大全
+
+    <!-- 最简单的缓存管理器，一般不使用 -->
+    <bean id="simpleCacheManager" class="org.springframework.cache.support.SimpleCacheManager">
+        <property name="caches">
+            <set>
+                <bean class="org.springframework.cache.concurrent.ConcurrentMapCacheFactoryBean" p:name="users"/>
+                <bean class="org.springframework.cache.concurrent.ConcurrentMapCacheFactoryBean" p:name="orders"/>
+            </set>
+        </property>
+    </bean>
+
+    <!-- 常用的 spring 缓存管理器 -->
+    <bean id="concurrentMapCacheManager" class="org.springframework.cache.concurrent.ConcurrentMapCacheManager"/>
+
+    <!-- spring 提供的复合缓存管理器，可以同时使用多个管理器 -->
+    <bean id="compositeCacheManager" class="org.springframework.cache.support.CompositeCacheManager">
+        <property name="cacheManagers">
+            <list>
+                <ref bean="simpleCacheManager"/>
+                <ref bean="concurrentMapCacheManager"/>
+            </list>
+        </property>
+    </bean>
+
+    <!-- ehcache 的缓存管理器 -->
+    <bean id="ehcacheCacheManager" class="org.springframework.cache.ehcache.EhCacheCacheManager" p:cacheManager-ref="ehcache"/>
+    <bean id="ehcache" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean" p:configLocation="classpath:ehcache.xml"/>
+
+    <!-- guava 的缓存管理器 -->
+    <bean id="guavaCacheManager" class="org.springframework.cache.guava.GuavaCacheManager"/>

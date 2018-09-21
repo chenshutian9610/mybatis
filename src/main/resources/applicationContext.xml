@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- spring-beans-4.0.xsd 经常写成 spring-beans-4.0.xml，报错 -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:cache="http://www.springframework.org/schema/cache"
+       xsi:schemaLocation="
+            http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+            http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+            http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+            http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache-4.0.xsd">
+
+    <tx:annotation-driven/>
+    <context:component-scan base-package="tree.service"/>
+    <context:property-placeholder location="classpath:db.properties"/>
+
+    <!-- 在这里配置了数据源之后，mybatis 配置文件中配置的数据源失效 -->
+    <bean id="dataSource" class="org.apache.commons.dbcp2.BasicDataSource" destroy-method="close"
+          p:driverClassName="${mysql_driver}" p:url="${mysql_url}" p:username="${mysql_username}"/>
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager"
+          p:dataSource-ref="dataSource"/>
+    <bean id="sessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean"
+          p:dataSource-ref="dataSource" p:configLocation="classpath:mybatis-config.xml"/>
+    <bean id="session" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg ref="sessionFactory"/>
+    </bean>
+
+    <!-- MapperFactoryBean, mapper 的工厂类封装，下面相当于 session.getMapper(MyOrderMapper.class) -->
+    <bean class="org.mybatis.spring.mapper.MapperFactoryBean"
+          p:sqlSessionFactory-ref="sessionFactory" p:mapperInterface="tree.dao.MyDao"/>
+
+    <!-- 当有多个接口需要封装时，需要定义多个 MapperFactoryBean，很繁琐，可以使用下列方法，用于批量封装 -->
+    <!--<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer" p:basePackage="tree.dao"/>-->
+
+    <!-- 默认使用名为 cacheManager 的缓存管理器-->
+    <cache:annotation-driven/>
+    <bean id="cacheManager" class="org.springframework.cache.concurrent.ConcurrentMapCacheManager"/>
+</beans>

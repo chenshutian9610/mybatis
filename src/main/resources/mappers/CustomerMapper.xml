@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="customer">
+    <!-- 嵌套查询示例 -->
+    <select id="findById" parameterType="int" resultType="customer">
+        select * from tb_customer where id=#{id}
+    </select>
+
+    <!-- 嵌套结果示例 -->
+    <resultMap id="customerMap" type="customer">
+        <!-- mybatis 不会为含有 collection 的 resultMap 自动注入属性，所以每一个都要自己配置
+             下面所有的 id 和 result 都是不能省略的（如果是 association 就不会发生这种问题）-->
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <collection property="orders" ofType="order">
+            <id property="id" column="o_id"/>
+            <result property="goods" column="goods"/>
+            <result property="price" column="price"/>
+        </collection>
+    </resultMap>
+    <select id="findByName" parameterType="string" resultMap="customerMap">
+        select c.*, o.id o_id, o.goods, o.price from tb_customer c, tb_order o where c.id=o.c_id and c.name=#{name};
+    </select>
+</mapper>

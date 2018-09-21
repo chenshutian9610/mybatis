@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 本项目使用这个文件来做 getMapper 的例子 -->
+<mapper namespace="order">
+    <!-- 嵌套查询示例 -->
+    <resultMap id="orderMap" type="order">
+        <!-- 这里只配置关联属性，因为其他属性会自动注入（property 和 column 同名）-->
+        <!-- association 进行嵌套查询时需要有一个 column 属性指向外键列，这是关键 -->
+        <association property="customer" column="c_id" javaType="customer" select="customer.findById"/>
+    </resultMap>
+    <select id="findAll" resultMap="orderMap">
+        select * from tb_order
+    </select>
+</mapper>

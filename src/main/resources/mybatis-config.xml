@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE configuration  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<!-- mybatis 的配置文件如果不在 IDE 环境下编写很容易出错，因为子标记的位置是绝对固定的，
+     如果下面的 settings 放在 properties 前面将报错 -->
+<configuration>
+    <!-- properties 用来指定外部文件 -->
+    <properties resource="db.properties"/>
+    <!-- 设置延迟加载
+         在映射文件中，association 和 collection 都含有 fetchType 属性，默认为 lazy，
+         但如果没有在配置文件中设置延迟加载，仍然是没有，相当于 eager-->
+    <settings>
+        <setting name="lazyLoadingEnabled" value="true"/>
+        <setting name="aggressiveLazyLoading" value="false"/>
+    </settings>
+    <!-- typeAliases 用来设置别名，这个标记很有用 -->
+    <typeAliases>
+        <!-- 用 domain 包下的类名变成小写来代替类，如 user 表示 tree.domain.User -->
+        <package name="tree.domain"/>
+    </typeAliases>
+    <!-- 可以配置多个环境，但使用的时候只能使用一个，使用 default 指定使用的环境 -->
+    <environments default="mysql_config">
+        <!-- 使用 id 给环境命名 -->
+        <environment id="mysql_config">
+            <!-- 可以取值为 jdbc 或 managed（非事务）-->
+            <transactionManager type="jdbc"/>
+            <!-- 可以取值为 unpooled，pooled 或 jndi，常用 pooled（使用连接池）-->
+            <dataSource type="pooled">
+                <property name="driver" value="${mysql_driver}"/>
+                <property name="url" value="${mysql_url}"/>
+                <property name="username" value="${mysql_username}"/>
+                <property name="password" value="${mysql_password}"/>
+            </dataSource>
+        </environment>
+        <environment id="oracle_config">
+            <transactionManager type="jdbc"/>
+            <dataSource type="pooled">
+                <property name="driver" value="${oracle_driver}"/>
+                <property name="url" value="${oracle_url}"/>
+                <property name="username" value="${oracle_username}"/>
+                <property name="password" value="${oracle_password}"/>
+            </dataSource>
+        </environment>
+    </environments>
+    <mappers>
+        <!-- xml 文件的配置 -->
+        <mapper resource="mappers/OrderMapper.xml"/>
+        <mapper resource="mappers/CustomerMapper.xml"/>
+        <!-- 基于注解的接口类的配置 -->
+        <mapper class="tree.dao.MyDao"/>
+		<!-- <package name="tree.dao"/> -->
+    </mappers>
+</configuration>
